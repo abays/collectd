@@ -914,12 +914,16 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
 
+  WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
   gen_metadata_payload(value, pid, process, timestamp, &n);
+  WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
 
+  WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
   plugin_dispatch_notification(&n);
+  WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
   plugin_notification_meta_free(n.meta);
 }
 
