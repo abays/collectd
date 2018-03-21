@@ -637,7 +637,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%zu", read_threads_num);
+    snprintf(name, sizeof(name), "reader#%" PRIsz, read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -648,7 +648,7 @@ static void stop_read_threads(void) {
   if (read_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu read threads.", read_threads_num);
+  INFO("collectd: Stopping %" PRIsz " read threads.", read_threads_num);
 
   pthread_mutex_lock(&read_lock);
   read_loop = 0;
@@ -843,7 +843,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%zu", write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIsz, write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -858,7 +858,7 @@ static void stop_write_threads(void) /* {{{ */
   if (write_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu write threads.", write_threads_num);
+  INFO("collectd: Stopping %" PRIsz " write threads.", write_threads_num);
 
   pthread_mutex_lock(&write_lock);
   write_loop = 0;
@@ -890,7 +890,7 @@ static void stop_write_threads(void) /* {{{ */
   pthread_mutex_unlock(&write_lock);
 
   if (i > 0) {
-    WARNING("plugin: %zu value list%s left after shutting down "
+    WARNING("plugin: %" PRIsz " value list%s left after shutting down "
             "the write threads.",
             i, (i == 1) ? " was" : "s were");
   }
@@ -1956,8 +1956,8 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
 #else
   if (ds->ds_num != vl->values_len) {
     ERROR("plugin_dispatch_values: ds->type = %s: "
-          "(ds->ds_num = %zu) != "
-          "(vl->values_len = %zu)",
+          "(ds->ds_num = %" PRIsz ") != "
+          "(vl->values_len = %" PRIsz ")",
           ds->type, ds->ds_num, vl->values_len);
     return -1;
   }
@@ -2304,13 +2304,16 @@ static int plugin_notification_meta_append(notification_t *n,
                                            enum notification_meta_type_e type,
                                            const void *value) {
   // If n is passed and is not NULL, this metadata object will be append to the
-  // end of n's linked list of metadata objects.
+  // end of n's linked list
+  // of metadata objects.
   //
   // If m is passed and is not NULL, and m is of type NM_TYPE_NESTED, then this
-  // metadata object will either be m's nm_value or appended to the end of the
-  // linked list starting with nm_value.  If m is not of type NM_TYPE_NESTED,
-  // this metadata object will be append to the end of the linked list of which
-  // m is a member.
+  // metadata object will
+  // either be m's nm_value or appended to the end of the linked list starting
+  // with nm_value.  If m
+  // is not of type NM_TYPE_NESTED, this metadata object will be end of the
+  // linked list of which m
+  // is a member.
 
   notification_meta_t *meta;
   notification_meta_t *tail;
@@ -2364,7 +2367,7 @@ static int plugin_notification_meta_append(notification_t *n,
   }
   case NM_TYPE_NESTED: {
     // This nested object's associated value will be the first
-    // of its nested children, with that first child being set by the
+    // of its nested children, with the first child being set by the
     // first metadata object appended to this nested object by
     // a later call to this function where this nested object is
     // passed as "m"
