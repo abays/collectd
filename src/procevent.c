@@ -968,7 +968,6 @@ static int procevent_read(void) /* {{{ */
     return (-1);
   } /* if (procevent_thread_error != 0) */
 
-  pthread_mutex_lock(&procevent_lock);
 
   int watch = 0;
   long long unsigned int before;
@@ -980,6 +979,8 @@ static int procevent_read(void) /* {{{ */
     before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     WARNING("AJB procevent procevent_read_ring_loop_BEFORE: %llu", before);
   }
+
+  pthread_mutex_lock(&procevent_lock);
 
   while (ring.head != ring.tail) {
     int next = ring.tail + 1;
@@ -1025,14 +1026,14 @@ static int procevent_read(void) /* {{{ */
     ring.tail = next;
   }
 
+  pthread_mutex_unlock(&procevent_lock);
+
   if (watch == 1)
   {
     after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     WARNING("AJB procevent procevent_read_ring_loop_AFTER: %llu", after);
     WARNING("AJB procevent procevent_read_ring_loop_DIFF: %llu %s", after-before, profile_scale);
   }
-
-  pthread_mutex_unlock(&procevent_lock);
 
   return (0);
 } /* }}} int procevent_read */
