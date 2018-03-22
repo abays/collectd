@@ -691,7 +691,7 @@ static int read_event() {
   // in the ring buffer for consumption by the main polling thread.
 
   if (proc_status != -1) {
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_lock(&procevent_lock);
 
     int next = ring.head + 1;
     if (next >= ring.maxLen)
@@ -981,6 +981,13 @@ static int procevent_read(void) /* {{{ */
   }
 
   pthread_mutex_lock(&procevent_lock);
+
+  if (watch == 1)
+  {
+    after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+    WARNING("AJB procevent procevent_read_ring_loop_LOCKED: %llu", after);
+    WARNING("AJB procevent procevent_read_ring_loop_LOCKED_DIFF: %llu", after-before);
+  }
 
   while (ring.head != ring.tail) {
     int next = ring.tail + 1;
