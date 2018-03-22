@@ -48,6 +48,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PROFILE_MICRO 1
+#define PROFILE_MILLI 1000
+#define PROFILE_SCALE PROFILE_MICRO
+
 #define PROCEVENT_EXITED 0
 #define PROCEVENT_STARTED 1
 #define PROCEVENT_FIELDS 4 // pid, status, extra, timestamp
@@ -125,6 +129,7 @@ static int buffer_length;
 static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
 static int event_id = 0;
+static char profile_scale[3];
 
 static const char *config_keys[] = {"BufferLength", "Process", "RegexProcess"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -452,6 +457,10 @@ static processlist_t *process_check(int pid) {
 static processlist_t *process_map_check(int pid, char *process) {
   processlist_t *pl;
 
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  WARNING("AJB procevent process_map_check_BEFORE: %llu", before);
+
   pthread_mutex_lock(&procevent_list_lock);
 
   for (pl = processlist_head; pl != NULL; pl = pl->next) {
@@ -483,6 +492,11 @@ static processlist_t *process_map_check(int pid, char *process) {
   }
 
   pthread_mutex_unlock(&procevent_list_lock);
+
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  WARNING("AJB procevent process_map_check_AFTER: %llu", after);
+  WARNING("AJB procevent process_map_check_DIFF: %llu %s", after-before, profile_scale);
 
   return NULL;
 }
@@ -843,6 +857,13 @@ static int procevent_init(void) /* {{{ */
 {
   int status;
 
+  if (PROFILE_SCALE == 1)
+    sstrncpy(profile_scale, "us\0", sizeof(profile_scale));
+  else if (PROFILE_SCALE == 1000)
+    sstrncpy(profile_scale, "ms\0", sizeof(profile_scale));
+  else
+    sstrncpy(profile_scale, "??\0", sizeof(profile_scale));
+
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
@@ -914,16 +935,23 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
 
-  WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", before);
   gen_metadata_payload(value, pid, process, timestamp, &n);
-  WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", after);
+  WARNING("AJB procevent gen_metadata_payload_DIFF: %llu %s", after-before, profile_scale);
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
 
-  WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", before);
   plugin_dispatch_notification(&n);
-  WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", after);
+  WARNING("AJB procevent plugin_dispatch_notification_DIFF: %llu %s", after-before, profile_scale);
   plugin_notification_meta_free(n.meta);
 }
 
@@ -941,6 +969,17 @@ static int procevent_read(void) /* {{{ */
   } /* if (procevent_thread_error != 0) */
 
   pthread_mutex_lock(&procevent_lock);
+
+  int watch = 0;
+  long long unsigned int before;
+  long long unsigned int after;
+
+  if (ring.head != ring.tail)
+  {
+    watch = 1;
+    before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+    WARNING("AJB procevent procevent_read_ring_loop_BEFORE: %llu", before);
+  }
 
   while (ring.head != ring.tail) {
     int next = ring.tail + 1;
@@ -962,8 +1001,15 @@ static int procevent_read(void) /* {{{ */
         pl->pid = -1;
       }
     } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
+      long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+      WARNING("AJB procevent process_check_BEFORE: %llu", before2);
       // a new process has started, so check if we should monitor it
       processlist_t *pl = process_check(ring.buffer[ring.tail][0]);
+      long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+      WARNING("AJB procevent process_check_AFTER: %llu", after2);
+      WARNING("AJB procevent process_check_DIFF: %llu %s", after2-before2, profile_scale);
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
@@ -977,6 +1023,13 @@ static int procevent_read(void) /* {{{ */
     }
 
     ring.tail = next;
+  }
+
+  if (watch == 1)
+  {
+    after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+    WARNING("AJB procevent procevent_read_ring_loop_AFTER: %llu", after);
+    WARNING("AJB procevent procevent_read_ring_loop_DIFF: %llu %s", after-before, profile_scale);
   }
 
   pthread_mutex_unlock(&procevent_lock);
