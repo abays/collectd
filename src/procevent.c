@@ -737,9 +737,9 @@ static void *procevent_thread(void *arg) /* {{{ */
 
     pthread_mutex_unlock(&procevent_thread_lock);
 
-    usleep(1000);
-
     status = read_event();
+
+    usleep(1000);
 
     pthread_mutex_lock(&procevent_thread_lock);
 
