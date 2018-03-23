@@ -935,23 +935,23 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
 
-  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-  WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", before);
+  //WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", before);
   gen_metadata_payload(value, pid, process, timestamp, &n);
-  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", after);
-  WARNING("AJB procevent gen_metadata_payload_DIFF: %llu %s", after-before, profile_scale);
+  //long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", after);
+  //WARNING("AJB procevent gen_metadata_payload_DIFF: %llu %s", after-before, profile_scale);
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
 
-  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", before);
+  //before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", before);
   plugin_dispatch_notification(&n);
-  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", after);
-  WARNING("AJB procevent plugin_dispatch_notification_DIFF: %llu %s", after-before, profile_scale);
+  //after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", after);
+  //WARNING("AJB procevent plugin_dispatch_notification_DIFF: %llu %s", after-before, profile_scale);
   plugin_notification_meta_free(n.meta);
 }
 
@@ -1009,15 +1009,15 @@ static int procevent_read(void) /* {{{ */
         pl->pid = -1;
       }
     } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
-      long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+      //long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-      WARNING("AJB procevent process_check_BEFORE: %llu", before2);
+      //WARNING("AJB procevent process_check_BEFORE: %llu", before2);
       // a new process has started, so check if we should monitor it
       processlist_t *pl = process_check(ring.buffer[ring.tail][0]);
-      long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+      //long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-      WARNING("AJB procevent process_check_AFTER: %llu", after2);
-      WARNING("AJB procevent process_check_DIFF: %llu %s", after2-before2, profile_scale);
+      //WARNING("AJB procevent process_check_AFTER: %llu", after2);
+      //WARNING("AJB procevent process_check_DIFF: %llu %s", after2-before2, profile_scale);
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
