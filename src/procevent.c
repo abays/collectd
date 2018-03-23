@@ -121,7 +121,8 @@ static ignorelist_t *ignorelist = NULL;
 static int procevent_thread_loop = 0;
 static int procevent_thread_error = 0;
 static pthread_t procevent_thread_id;
-static pthread_mutex_t procevent_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t procevent_thread_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t procevent_ring_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t procevent_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t procevent_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static int nl_sock = -1;
@@ -457,9 +458,9 @@ static processlist_t *process_check(int pid) {
 static processlist_t *process_map_check(int pid, char *process) {
   processlist_t *pl;
 
-  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-  WARNING("AJB procevent process_map_check_BEFORE: %llu", before);
+  //WARNING("AJB procevent process_map_check_BEFORE: %llu", before);
 
   pthread_mutex_lock(&procevent_list_lock);
 
@@ -493,10 +494,10 @@ static processlist_t *process_map_check(int pid, char *process) {
 
   pthread_mutex_unlock(&procevent_list_lock);
 
-  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  //long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-  WARNING("AJB procevent process_map_check_AFTER: %llu", after);
-  WARNING("AJB procevent process_map_check_DIFF: %llu %s", after-before, profile_scale);
+  //WARNING("AJB procevent process_map_check_AFTER: %llu", after);
+  //WARNING("AJB procevent process_map_check_DIFF: %llu %s", after-before, profile_scale);
 
   return NULL;
 }
@@ -691,7 +692,7 @@ static int read_event() {
   // in the ring buffer for consumption by the main polling thread.
 
   if (proc_status != -1) {
-    pthread_mutex_lock(&procevent_lock);
+    pthread_mutex_lock(&procevent_ring_lock);
 
     int next = ring.head + 1;
     if (next >= ring.maxLen)
@@ -721,7 +722,7 @@ static int read_event() {
       ring.head = next;
     }
 
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_unlock(&procevent_ring_lock);
   }
 
   return ret;
@@ -729,18 +730,18 @@ static int read_event() {
 
 static void *procevent_thread(void *arg) /* {{{ */
 {
-  pthread_mutex_lock(&procevent_lock);
+  pthread_mutex_lock(&procevent_thread_lock);
 
   while (procevent_thread_loop > 0) {
     int status;
 
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_unlock(&procevent_thread_lock);
 
     usleep(1000);
 
     status = read_event();
 
-    pthread_mutex_lock(&procevent_lock);
+    pthread_mutex_lock(&procevent_thread_lock);
 
     if (status < 0) {
       procevent_thread_error = 1;
@@ -751,7 +752,7 @@ static void *procevent_thread(void *arg) /* {{{ */
       break;
   } /* while (procevent_thread_loop > 0) */
 
-  pthread_mutex_unlock(&procevent_lock);
+  pthread_mutex_unlock(&procevent_thread_lock);
 
   return ((void *)0);
 } /* }}} void *procevent_thread */
@@ -760,10 +761,10 @@ static int start_thread(void) /* {{{ */
 {
   int status;
 
-  pthread_mutex_lock(&procevent_lock);
+  pthread_mutex_lock(&procevent_thread_lock);
 
   if (procevent_thread_loop != 0) {
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_unlock(&procevent_thread_lock);
     return (0);
   }
 
@@ -789,11 +790,11 @@ static int start_thread(void) /* {{{ */
   if (status != 0) {
     procevent_thread_loop = 0;
     ERROR("procevent plugin: Starting thread failed.");
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_unlock(&procevent_thread_lock);
     return (-1);
   }
 
-  pthread_mutex_unlock(&procevent_lock);
+  pthread_mutex_unlock(&procevent_thread_lock);
   return (0);
 } /* }}} int start_thread */
 
@@ -811,16 +812,16 @@ static int stop_thread(int shutdown) /* {{{ */
       nl_sock = -1;
   }
 
-  pthread_mutex_lock(&procevent_lock);
+  pthread_mutex_lock(&procevent_thread_lock);
 
   if (procevent_thread_loop == 0) {
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_unlock(&procevent_thread_lock);
     return (-1);
   }
 
   procevent_thread_loop = 0;
   pthread_cond_broadcast(&procevent_cond);
-  pthread_mutex_unlock(&procevent_lock);
+  pthread_mutex_unlock(&procevent_thread_lock);
 
   if (shutdown == 1) {
     // Calling pthread_cancel here in
@@ -843,10 +844,10 @@ static int stop_thread(int shutdown) /* {{{ */
     }
   }
 
-  pthread_mutex_lock(&procevent_lock);
+  pthread_mutex_lock(&procevent_thread_lock);
   memset(&procevent_thread_id, 0, sizeof(procevent_thread_id));
   procevent_thread_error = 0;
-  pthread_mutex_unlock(&procevent_lock);
+  pthread_mutex_unlock(&procevent_thread_lock);
 
   DEBUG("procevent plugin: Finished requesting stop of thread");
 
@@ -980,7 +981,7 @@ static int procevent_read(void) /* {{{ */
     WARNING("AJB procevent procevent_read_ring_loop_BEFORE: %llu", before);
   }
 
-  pthread_mutex_lock(&procevent_lock);
+  pthread_mutex_lock(&procevent_ring_lock);
 
   if (watch == 1)
   {
@@ -1033,7 +1034,7 @@ static int procevent_read(void) /* {{{ */
     ring.tail = next;
   }
 
-  pthread_mutex_unlock(&procevent_lock);
+  pthread_mutex_unlock(&procevent_ring_lock);
 
   if (watch == 1)
   {
