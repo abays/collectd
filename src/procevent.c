@@ -692,7 +692,9 @@ static int read_event() {
   // in the ring buffer for consumption by the main polling thread.
 
   if (proc_status != -1) {
+    WARNING("AJB locking ring in listener for %d", proc_id);
     pthread_mutex_lock(&procevent_ring_lock);
+    WARNING("AJB locked ring in listener for %d", proc_id);
 
     int next = ring.head + 1;
     if (next >= ring.maxLen)
@@ -722,7 +724,9 @@ static int read_event() {
       ring.head = next;
     }
 
+    WARNING("AJB unlocking ring in listener for %d", proc_id);
     pthread_mutex_unlock(&procevent_ring_lock);
+    WARNING("AJB unlocked ring in listener for %d", proc_id);
   }
 
   return ret;
