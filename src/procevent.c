@@ -986,7 +986,7 @@ static int procevent_read(void) /* {{{ */
   {
     after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     WARNING("AJB procevent procevent_read_ring_loop_LOCKED: %llu", after);
-    WARNING("AJB procevent procevent_read_ring_loop_LOCKED_DIFF: %llu", after-before);
+    WARNING("AJB procevent procevent_read_ring_loop_LOCKED_DIFF: %llu %s", after-before, profile_scale);
   }
 
   while (ring.head != ring.tail) {
