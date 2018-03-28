@@ -49,6 +49,10 @@
 #define HAVE_YAJL_V2 1
 #endif
 
+#define PROFILE_MICRO 1
+#define PROFILE_MILLI 1000
+#define PROFILE_SCALE PROFILE_MICRO
+
 #define SYSEVENT_DOMAIN_FIELD "domain"
 #define SYSEVENT_DOMAIN_VALUE "syslog"
 #define SYSEVENT_EVENT_ID_FIELD "eventId"
@@ -114,6 +118,7 @@ static int listen_buffer_size = 4096;
 static int buffer_length = 10;
 
 static int monitor_all_messages = 1;
+static char profile_scale[3];
 
 #if HAVE_YAJL_V2
 static const char *rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
@@ -458,6 +463,13 @@ static int stop_thread(int shutdown) /* {{{ */
 
 static int sysevent_init(void) /* {{{ */
 {
+  if (PROFILE_SCALE == 1)
+    sstrncpy(profile_scale, "us\0", sizeof(profile_scale));
+  else if (PROFILE_SCALE == 1000)
+    sstrncpy(profile_scale, "ms\0", sizeof(profile_scale));
+  else
+    sstrncpy(profile_scale, "??\0", sizeof(profile_scale));
+  
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
@@ -729,7 +741,21 @@ static int sysevent_read(void) /* {{{ */
     return (-1);
   } /* if (sysevent_thread_error != 0) */
 
+  long long unsigned int before;
+  long long unsigned int after;
+  long long unsigned int after_lock;
+  long long unsigned int after_unlock;
+  long long unsigned int loop;
+
+  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   pthread_mutex_lock(&sysevent_lock);
+
+  after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  if (after_lock - before > 1000)
+    WARNING("AJB sysevent sysevent_read_ring_loop_lock_acq_DIFF: %llu %s", after_lock-before, profile_scale);
+
+  loop = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   while (ring.head != ring.tail) {
     long long unsigned int timestamp;
@@ -797,19 +823,45 @@ static int sysevent_read(void) /* {{{ */
 
 #if HAVE_YAJL_V2
     if (is_match == 1 && node != NULL) {
+      long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(NULL, &node, timestamp);
+      long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+      WARNING("AJB sysevent node_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
       yajl_tree_free(node);
-    } else if (is_match == 1)
+    } else if (is_match == 1) {
+      long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(ring.buffer[ring.tail], NULL, timestamp);
+      long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+      WARNING("AJB sysevent raw_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+    }
 #else
     if (is_match == 1)
+    {
+      long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(ring.buffer[ring.tail], timestamp);
+      long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+      WARNING("AJB sysevent raw_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+    }
 #endif
 
     ring.tail = next;
   }
 
+  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+    
+  if (after - loop > 1000)
+  {
+    WARNING("AJB sysevent sysevent_read_ring_loop_DIFF: %llu %s", after-loop, profile_scale);
+  }
+
   pthread_mutex_unlock(&sysevent_lock);
+
+  after_unlock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  if (after_unlock - after_lock > 1000)
+  {
+    WARNING("AJB sysevent sysevent_read_ring_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+  }
 
   return (0);
 } /* }}} int sysevent_read */
