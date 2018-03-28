@@ -469,7 +469,7 @@ static int sysevent_init(void) /* {{{ */
     sstrncpy(profile_scale, "ms\0", sizeof(profile_scale));
   else
     sstrncpy(profile_scale, "??\0", sizeof(profile_scale));
-  
+
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
@@ -628,7 +628,7 @@ static void sysevent_dispatch_notification(const char *message,
                                            yajl_val *node,
 #endif
                                            long long unsigned int timestamp) {
-
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   notification_t n = {NOTIF_OKAY, cdtime(), "", "",  "sysevent",
                       "",         "",       "", NULL};
 
@@ -718,12 +718,22 @@ static void sysevent_dispatch_notification(const char *message,
   gen_metadata_payload(message, NULL, -1, NULL, hostname_g, timestamp, &n);
 #endif
 
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+  if (after - before > 1000)
+    WARNING("AJB sysevent sysevent_dispatch_gen_payload_DIFF: %llu %s", after-before, profile_scale);
+
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.type, "gauge", sizeof(n.type));
 
   DEBUG("sysevent plugin: dispatching message");
 
+  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   plugin_dispatch_notification(&n);
+  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  if (after - before > 1000)
+    WARNING("AJB sysevent sysevent_dispatch_dispatch_DIFF: %llu %s", after-before, profile_scale);
+
   plugin_notification_meta_free(n.meta);
 }
 
