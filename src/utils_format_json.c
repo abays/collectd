@@ -611,9 +611,13 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   JSON_ADD(g, "summary");
   JSON_ADD(g, n->message);
 
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
   if (format_json_meta(g, n->meta) != 0) {
     return -1;
   }
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+  if (after - before > 100)
+    WARNING("AJB format_json_meta_DIFF: %llu us", after-before);
 
   CHECK_SUCCESS(yajl_gen_map_close(g)); /* END annotations */
 

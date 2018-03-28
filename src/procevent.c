@@ -942,7 +942,7 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
                                             gauge_t value, char *process,
                                             long long unsigned int timestamp) {
-
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "procevent", "", "", "",
                       NULL};
 
@@ -954,23 +954,17 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
 
-  //long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-
-  //WARNING("AJB procevent gen_metadata_payload_BEFORE: %llu", before);
   gen_metadata_payload(value, pid, process, timestamp, &n);
-  //long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  //WARNING("AJB procevent gen_metadata_payload_AFTER: %llu", after);
-  //WARNING("AJB procevent gen_metadata_payload_DIFF: %llu %s", after-before, profile_scale);
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  WARNING("AJB procevent procevent_gen_payload_DIFF: %llu %s", after-before, profile_scale);
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
 
-  //before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  //WARNING("AJB procevent plugin_dispatch_notification_BEFORE: %llu", before);
+  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   plugin_dispatch_notification(&n);
-  //after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  //WARNING("AJB procevent plugin_dispatch_notification_AFTER: %llu", after);
-  //WARNING("AJB procevent plugin_dispatch_notification_DIFF: %llu %s", after-before, profile_scale);
+  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+  WARNING("AJB procevent procevent_dispatch_dispatch_DIFF: %llu %s", after-before, profile_scale);
   plugin_notification_meta_free(n.meta);
 }
 

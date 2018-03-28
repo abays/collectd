@@ -322,6 +322,7 @@ static int amqp1_notify(notification_t const *n,
   cdm->mbuf = pn_bytes(bufsize, (char *)malloc(bufsize));
   cdm->instance = instance;
 
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
   switch (instance->format) {
   case AMQP1_FORMAT_JSON:
     format_json_initialize((char *)cdm->mbuf.start, &bfill, &bfree);
@@ -336,9 +337,16 @@ static int amqp1_notify(notification_t const *n,
     ERROR("amqp1 plugin: Invalid notify format (%i).", instance->format);
     return -1;
   }
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+
+  WARNING("AJB amqp1_notify_meta_DIFF: %llu us", after-before);
 
   /* encode message and place on outbound queue */
+  before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
   encqueue(cdm, instance);
+  after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+
+  WARNING("AJB amqp1_notify_enqueue_DIFF: %llu us", after-before);
 
   return 0;
 } /* }}} int amqp1_notify */
