@@ -732,7 +732,7 @@ static int read_event() {
     pthread_mutex_unlock(&procevent_lock);
     long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     if (after2 - before2 > 100)
-      WARNING("AJB procevent read_event_DIFF: %llu %s", after2-before2, profile_scale);
+      WARNING("AJB procevent read_event_lock_rel_DIFF: %llu %s", after2-before2, profile_scale);
   }
 
   return ret;
@@ -741,17 +741,25 @@ static int read_event() {
 static void *procevent_thread(void *arg) /* {{{ */
 {
   pthread_mutex_lock(&procevent_lock);
+  long long unsigned int after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   while (procevent_thread_loop > 0) {
     int status;
 
     pthread_mutex_unlock(&procevent_lock);
+    long long unsigned int after_unlock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
+    if (after_unlock > after_lock && after_unlock - after_lock > 100)
+      WARNING("AJB procevent procevent_thread_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+    else if (after_lock > after_unlock && after_lock - after_unlock > 100)
+      WARNING("AJB procevent procevent_thread_lock_rel_DIFF: %llu %s", after_lock-after_unlock, profile_scale);
 
     status = read_event();
 
     usleep(1000);
 
     pthread_mutex_lock(&procevent_lock);
+    after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
     if (status < 0) {
       procevent_thread_error = 1;
@@ -985,6 +993,7 @@ static int procevent_read(void) /* {{{ */
   int watch = 0;
   long long unsigned int before;
   long long unsigned int after_lock;
+  long long unsigned int after_unlock;
   long long unsigned int loop;
   long long unsigned int after;
 
@@ -995,7 +1004,7 @@ static int procevent_read(void) /* {{{ */
   after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   if (after_lock - before > 1000)
-    WARNING("AJB procevent procevent_read_ring_loop_DIFF_after_lock: %llu %s", after_lock-before, profile_scale);
+    WARNING("AJB procevent procevent_read_ring_loop_lock_acq_DIFF: %llu %s", after_lock-before, profile_scale);
 
   // if (watch == 1)
   // {
@@ -1071,8 +1080,15 @@ static int procevent_read(void) /* {{{ */
 
   pthread_mutex_unlock(&procevent_lock);
 
+  after_unlock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+
   if (watch == 1)
   {
+    if (after_unlock - after_lock > 1000)
+    {
+      WARNING("AJB procevent procevent_read_ring_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+    }
+
     if (after - before > 1000)
     {
       WARNING("AJB procevent procevent_read_ring_full_DIFF: %llu %s", after-before, profile_scale);
