@@ -2201,7 +2201,7 @@ int plugin_dispatch_notification(const notification_t *notif) {
   pid_t tid = syscall(__NR_gettid);
 
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
-  WARNING("AJB (%d) procevent procevent_dispatch_dispatch_DIFF: %llu us", tid, after-before);
+  WARNING("AJB (%d) plugin_dispatch_DIFF: %llu us", tid, after-before);
   return 0;
 } /* int plugin_dispatch_notification */
 
