@@ -47,6 +47,8 @@
 #endif
 
 #include <dlfcn.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 /*
  * Private structures
@@ -2163,6 +2165,7 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
 } /* }}} int plugin_dispatch_multivalue */
 
 int plugin_dispatch_notification(const notification_t *notif) {
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
   llentry_t *le;
   /* Possible TODO: Add flap detection here */
 
@@ -2195,7 +2198,10 @@ int plugin_dispatch_notification(const notification_t *notif) {
 
     le = le->next;
   }
+  pid_t tid = syscall(__NR_gettid);
 
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+  WARNING("AJB (%d) procevent procevent_dispatch_dispatch_DIFF: %llu us", tid, after-before);
   return 0;
 } /* int plugin_dispatch_notification */
 
@@ -2304,16 +2310,13 @@ static int plugin_notification_meta_append(notification_t *n,
                                            enum notification_meta_type_e type,
                                            const void *value) {
   // If n is passed and is not NULL, this metadata object will be append to the
-  // end of n's linked list
-  // of metadata objects.
+  // end of n's linked list of metadata objects.
   //
   // If m is passed and is not NULL, and m is of type NM_TYPE_NESTED, then this
-  // metadata object will
-  // either be m's nm_value or appended to the end of the linked list starting
-  // with nm_value.  If m
-  // is not of type NM_TYPE_NESTED, this metadata object will be end of the
-  // linked list of which m
-  // is a member.
+  // metadata object will either be m's nm_value or appended to the end of the
+  // linked list starting with nm_value.  If m is not of type NM_TYPE_NESTED,
+  // this metadata object will be append to the end of the linked list of which
+  // m is a member.
 
   notification_meta_t *meta;
   notification_meta_t *tail;
@@ -2367,7 +2370,7 @@ static int plugin_notification_meta_append(notification_t *n,
   }
   case NM_TYPE_NESTED: {
     // This nested object's associated value will be the first
-    // of its nested children, with the first child being set by the
+    // of its nested children, with that first child being set by the
     // first metadata object appended to this nested object by
     // a later call to this function where this nested object is
     // passed as "m"

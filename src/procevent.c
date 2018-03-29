@@ -37,6 +37,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 #include <dirent.h>
 #include <linux/cn_proc.h>
@@ -330,6 +332,7 @@ static processlist_t *process_check(int pid) {
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
+  pid_t tid = syscall(__NR_gettid);
 
   len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
 
@@ -454,7 +457,7 @@ static processlist_t *process_check(int pid) {
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   if (after - before > 100)
-    WARNING("AJB procevent process_check_DIFF: %llu %s", after-before, profile_scale);
+    WARNING("AJB (%d) procevent process_check_DIFF: %llu %s", tid, after-before, profile_scale);
 
   return match;
 }
@@ -462,10 +465,10 @@ static processlist_t *process_check(int pid) {
 // Does our map have this PID or name?
 static processlist_t *process_map_check(int pid, char *process) {
   processlist_t *pl;
-
+  pid_t tid = syscall(__NR_gettid);
   long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-  //WARNING("AJB procevent process_map_check_BEFORE: %llu", before);
+  //WARNING("AJB (%d) procevent process_map_check_BEFORE: %llu", before);
 
   pthread_mutex_lock(&procevent_list_lock);
 
@@ -501,9 +504,9 @@ static processlist_t *process_map_check(int pid, char *process) {
 
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-  //WARNING("AJB procevent process_map_check_AFTER: %llu", after);
+  //WARNING("AJB (%d) procevent process_map_check_AFTER: %llu", after);
   if (after - before > 100)
-    WARNING("AJB procevent process_map_check_DIFF: %llu %s", after-before, profile_scale);
+    WARNING("AJB (%d) procevent process_map_check_DIFF: %llu %s", tid, after-before, profile_scale);
 
   return NULL;
 }
@@ -647,6 +650,7 @@ static int set_proc_ev_listen(bool enable) {
 }
 
 static int read_event() {
+  pid_t tid = syscall(__NR_gettid);
   int status;
   int ret = 0;
   int proc_id = -1;
@@ -732,7 +736,7 @@ static int read_event() {
     pthread_mutex_unlock(&procevent_lock);
     long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     if (after2 - before2 > 100)
-      WARNING("AJB procevent read_event_lock_rel_DIFF: %llu %s", after2-before2, profile_scale);
+      WARNING("AJB (%d) procevent read_event_lock_rel_DIFF: %llu %s", tid, after2-before2, profile_scale);
   }
 
   return ret;
@@ -740,6 +744,7 @@ static int read_event() {
 
 static void *procevent_thread(void *arg) /* {{{ */
 {
+  pid_t tid = syscall(__NR_gettid);
   pthread_mutex_lock(&procevent_lock);
   long long unsigned int after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
@@ -750,9 +755,9 @@ static void *procevent_thread(void *arg) /* {{{ */
     long long unsigned int after_unlock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
     if (after_unlock > after_lock && after_unlock - after_lock > 100)
-      WARNING("AJB procevent procevent_thread_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+      WARNING("AJB (%d) procevent procevent_thread_lock_rel_DIFF: %llu %s", tid, after_unlock-after_lock, profile_scale);
     else if (after_lock > after_unlock && after_lock - after_unlock > 100)
-      WARNING("AJB procevent procevent_thread_lock_rel_DIFF: %llu %s", after_lock-after_unlock, profile_scale);
+      WARNING("AJB (%d) procevent procevent_thread_lock_rel_DIFF: %llu %s", tid, after_lock-after_unlock, profile_scale);
 
     status = read_event();
 
@@ -945,7 +950,7 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "procevent", "", "", "",
                       NULL};
-
+  pid_t tid = syscall(__NR_gettid);
   if (value == 1)
     n.severity = NOTIF_OKAY;
 
@@ -956,7 +961,7 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
 
   gen_metadata_payload(value, pid, process, timestamp, &n);
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  WARNING("AJB procevent procevent_gen_payload_DIFF: %llu %s", after-before, profile_scale);
+  WARNING("AJB (%d) procevent procevent_gen_payload_DIFF: %llu %s", tid, after-before, profile_scale);
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
@@ -964,7 +969,7 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   plugin_dispatch_notification(&n);
   after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  WARNING("AJB procevent procevent_dispatch_dispatch_DIFF: %llu %s", after-before, profile_scale);
+  WARNING("AJB (%d) procevent procevent_dispatch_dispatch_DIFF: %llu %s", tid, after-before, profile_scale);
   plugin_notification_meta_free(n.meta);
 }
 
@@ -983,6 +988,7 @@ static int procevent_read(void) /* {{{ */
     return (-1);
   } /* if (procevent_thread_error != 0) */
 
+  pid_t tid = syscall(__NR_gettid);
 
   int watch = 0;
   long long unsigned int before;
@@ -998,14 +1004,14 @@ static int procevent_read(void) /* {{{ */
   after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   if (after_lock - before > 1000)
-    WARNING("AJB procevent procevent_read_ring_loop_lock_acq_DIFF: %llu %s", after_lock-before, profile_scale);
+    WARNING("AJB (%d) procevent procevent_read_ring_loop_lock_acq_DIFF: %llu %s", tid, after_lock-before, profile_scale);
 
   // if (watch == 1)
   // {
   //   after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-  //   //WARNING("AJB procevent procevent_read_ring_loop_LOCKED: %llu", after);
+  //   //WARNING("AJB (%d) procevent procevent_read_ring_loop_LOCKED: %llu", after);
   //   if (after - before > 100)
-  //     WARNING("AJB procevent procevent_read_ring_loop_LOCKED_DIFF: %llu %s", after-before, profile_scale);
+  //     WARNING("AJB (%d) procevent procevent_read_ring_loop_LOCKED_DIFF: %llu %s", tid, after-before, profile_scale);
   // }
 
   loop = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
@@ -1029,7 +1035,7 @@ static int procevent_read(void) /* {{{ */
                                         ring.buffer[ring.tail][3]);
         long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-        WARNING("AJB procevent exit_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+        WARNING("AJB (%d) procevent exit_dispatch_DIFF: %llu %s", tid, after2-before2, profile_scale);
         DEBUG("procevent plugin: PID %d (%s) EXITED, removing PID from process "
               "list",
               pl->pid, pl->process);
@@ -1038,13 +1044,13 @@ static int procevent_read(void) /* {{{ */
     } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
       //long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-      //WARNING("AJB procevent process_check_BEFORE: %llu", before2);
+      //WARNING("AJB (%d) procevent process_check_BEFORE: %llu", before2);
       // a new process has started, so check if we should monitor it
       processlist_t *pl = process_check(ring.buffer[ring.tail][0]);
       //long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-      //WARNING("AJB procevent process_check_AFTER: %llu", after2);
-      //WARNING("AJB procevent process_check_DIFF: %llu %s", after2-before2, profile_scale);
+      //WARNING("AJB (%d) procevent process_check_AFTER: %llu", after2);
+      //WARNING("AJB (%d) procevent process_check_DIFF: %llu %s", tid, after2-before2, profile_scale);
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
@@ -1054,7 +1060,7 @@ static int procevent_read(void) /* {{{ */
                                         ring.buffer[ring.tail][3]);
         long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
-        WARNING("AJB procevent start_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+        WARNING("AJB (%d) procevent start_dispatch_DIFF: %llu %s", tid, after2-before2, profile_scale);
         DEBUG(
             "procevent plugin: PID %d (%s) STARTED, adding PID to process list",
             pl->pid, pl->process);
@@ -1069,7 +1075,7 @@ static int procevent_read(void) /* {{{ */
     
   if (after - loop > 1000)
   {
-    WARNING("AJB procevent procevent_read_ring_loop_DIFF: %llu %s", after-loop, profile_scale);
+    WARNING("AJB (%d) procevent procevent_read_ring_loop_DIFF: %llu %s", tid, after-loop, profile_scale);
   }
 
   pthread_mutex_unlock(&procevent_lock);
@@ -1080,12 +1086,12 @@ static int procevent_read(void) /* {{{ */
   {
     if (after_unlock - after_lock > 1000)
     {
-      WARNING("AJB procevent procevent_read_ring_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+      WARNING("AJB (%d) procevent procevent_read_ring_lock_rel_DIFF: %llu %s", tid, after_unlock-after_lock, profile_scale);
     }
 
     if (after - before > 1000)
     {
-      WARNING("AJB procevent procevent_read_ring_full_DIFF: %llu %s", after-before, profile_scale);
+      WARNING("AJB (%d) procevent procevent_read_ring_full_DIFF: %llu %s", tid, after-before, profile_scale);
     }
   }
 

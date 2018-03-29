@@ -40,6 +40,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 #if HAVE_YAJL_YAJL_VERSION_H
 #include <yajl/yajl_version.h>
@@ -631,7 +633,7 @@ static void sysevent_dispatch_notification(const char *message,
   long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   notification_t n = {NOTIF_OKAY, cdtime(), "", "",  "sysevent",
                       "",         "",       "", NULL};
-
+  pid_t tid = syscall(__NR_gettid);
 #if HAVE_YAJL_V2
   if (node != NULL) {
     // If we have a parsed-JSON node to work with, use that
@@ -721,7 +723,7 @@ static void sysevent_dispatch_notification(const char *message,
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   if (after - before > 1000)
-    WARNING("AJB sysevent sysevent_dispatch_gen_payload_DIFF: %llu %s", after-before, profile_scale);
+    WARNING("AJB (%d) sysevent sysevent_dispatch_gen_payload_DIFF: %llu %s", tid, after-before, profile_scale);
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.type, "gauge", sizeof(n.type));
@@ -732,7 +734,7 @@ static void sysevent_dispatch_notification(const char *message,
   plugin_dispatch_notification(&n);
   after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   if (after - before > 1000)
-    WARNING("AJB sysevent sysevent_dispatch_dispatch_DIFF: %llu %s", after-before, profile_scale);
+    WARNING("AJB (%d) sysevent sysevent_dispatch_dispatch_DIFF: %llu %s", tid, after-before, profile_scale);
 
   plugin_notification_meta_free(n.meta);
 }
@@ -757,13 +759,15 @@ static int sysevent_read(void) /* {{{ */
   long long unsigned int after_unlock;
   long long unsigned int loop;
 
+  pid_t tid = syscall(__NR_gettid);
+
   before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
   pthread_mutex_lock(&sysevent_lock);
 
   after_lock = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
   if (after_lock - before > 1000)
-    WARNING("AJB sysevent sysevent_read_ring_loop_lock_acq_DIFF: %llu %s", after_lock-before, profile_scale);
+    WARNING("AJB (%d) sysevent sysevent_read_ring_loop_lock_acq_DIFF: %llu %s", tid, after_lock-before, profile_scale);
 
   loop = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
 
@@ -836,13 +840,13 @@ static int sysevent_read(void) /* {{{ */
       long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(NULL, &node, timestamp);
       long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-      WARNING("AJB sysevent node_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+      WARNING("AJB (%d) sysevent node_dispatch_DIFF: %llu %s", tid, after2-before2, profile_scale);
       yajl_tree_free(node);
     } else if (is_match == 1) {
       long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(ring.buffer[ring.tail], NULL, timestamp);
       long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-      WARNING("AJB sysevent raw_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+      WARNING("AJB (%d) sysevent raw_dispatch_DIFF: %llu %s", tid, after2-before2, profile_scale);
     }
 #else
     if (is_match == 1)
@@ -850,7 +854,7 @@ static int sysevent_read(void) /* {{{ */
       long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
       sysevent_dispatch_notification(ring.buffer[ring.tail], timestamp);
       long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
-      WARNING("AJB sysevent raw_dispatch_DIFF: %llu %s", after2-before2, profile_scale);
+      WARNING("AJB (%d) sysevent raw_dispatch_DIFF: %llu %s", tid, after2-before2, profile_scale);
     }
 #endif
 
@@ -861,7 +865,7 @@ static int sysevent_read(void) /* {{{ */
     
   if (after - loop > 1000)
   {
-    WARNING("AJB sysevent sysevent_read_ring_loop_DIFF: %llu %s", after-loop, profile_scale);
+    WARNING("AJB (%d) sysevent sysevent_read_ring_loop_DIFF: %llu %s", tid, after-loop, profile_scale);
   }
 
   pthread_mutex_unlock(&sysevent_lock);
@@ -870,7 +874,7 @@ static int sysevent_read(void) /* {{{ */
 
   if (after_unlock - after_lock > 1000)
   {
-    WARNING("AJB sysevent sysevent_read_ring_lock_rel_DIFF: %llu %s", after_unlock-after_lock, profile_scale);
+    WARNING("AJB (%d) sysevent sysevent_read_ring_lock_rel_DIFF: %llu %s", tid, after_unlock-after_lock, profile_scale);
   }
 
   return (0);
