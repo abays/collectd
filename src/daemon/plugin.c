@@ -2165,7 +2165,7 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
 } /* }}} int plugin_dispatch_multivalue */
 
 int plugin_dispatch_notification(const notification_t *notif) {
-  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+  long long unsigned int before = (long long unsigned int)CDTIME_T_TO_US(cdtime());
   llentry_t *le;
   /* Possible TODO: Add flap detection here */
 
@@ -2200,7 +2200,7 @@ int plugin_dispatch_notification(const notification_t *notif) {
   }
   pid_t tid = syscall(__NR_gettid);
 
-  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime())/1000;
+  long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime());
   WARNING("AJB (%d) plugin_dispatch_DIFF: %llu us", tid, after-before);
   return 0;
 } /* int plugin_dispatch_notification */
