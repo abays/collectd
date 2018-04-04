@@ -2178,6 +2178,8 @@ int plugin_dispatch_notification(const notification_t *notif) {
   if (list_notification == NULL)
     return -1;
 
+  pid_t tid = syscall(__NR_gettid);
+
   le = llist_head(list_notification);
   while (le != NULL) {
     callback_func_t *cf;
@@ -2189,7 +2191,11 @@ int plugin_dispatch_notification(const notification_t *notif) {
 
     cf = le->value;
     callback = cf->cf_callback;
+    long long unsigned int before2 = (long long unsigned int)CDTIME_T_TO_US(cdtime());
     status = (*callback)(notif, &cf->cf_udata);
+    long long unsigned int after2 = (long long unsigned int)CDTIME_T_TO_US(cdtime());
+    if (after2 - before2 > 1000)
+        WARNING("AJB (%d) plugin_%s_write_dispatch_DIFF: %llu us", tid, le->key, after2-before2);
     if (status != 0) {
       WARNING("plugin_dispatch_notification: Notification "
               "callback %s returned %i.",
@@ -2198,7 +2204,6 @@ int plugin_dispatch_notification(const notification_t *notif) {
 
     le = le->next;
   }
-  pid_t tid = syscall(__NR_gettid);
 
   long long unsigned int after = (long long unsigned int)CDTIME_T_TO_US(cdtime());
   WARNING("AJB (%d) plugin_dispatch_DIFF: %llu us", tid, after-before);
