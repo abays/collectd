@@ -787,6 +787,7 @@ static int sysevent_read(void) /* {{{ */
 
 #if HAVE_YAJL_V2
     // Try to parse JSON, and if it fails, fall back to plain string
+    long long unsigned int yajl_parse_start = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
     yajl_val node = NULL;
     char errbuf[1024];
     errbuf[0] = 0;
@@ -818,6 +819,8 @@ static int sysevent_read(void) /* {{{ */
       if (monitor_all_messages == 0)
         match_str = ring.buffer[ring.tail];
     }
+    long long unsigned int yajl_parse_end = (long long unsigned int)CDTIME_T_TO_US(cdtime())/PROFILE_SCALE;
+    WARNING("AJB (%d) sysevent yajl_parse_DIFF: %llu %s", tid, yajl_parse_end-yajl_parse_start, profile_scale);
 #else
     // If we have any regex filters, we need to see if the message data
     // matches any of them (otherwise we're not interested)
