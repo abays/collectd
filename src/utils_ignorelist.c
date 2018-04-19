@@ -59,19 +59,6 @@
 /*
  * private prototypes
  */
-struct ignorelist_item_s {
-#if HAVE_REGEX_H
-  regex_t *rmatch; /* regular expression entry identification */
-#endif
-  char *smatch; /* string entry identification */
-  struct ignorelist_item_s *next;
-};
-typedef struct ignorelist_item_s ignorelist_item_t;
-
-struct ignorelist_s {
-  int ignore;              /* ignore entries */
-  ignorelist_item_t *head; /* pointer to the first entry */
-};
 
 /* *** *** *** ********************************************* *** *** *** */
 /* *** *** *** *** *** ***   private functions   *** *** *** *** *** *** */
