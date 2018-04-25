@@ -476,7 +476,7 @@ static processlist_t *process_check(int pid) {
   // Now that we have the process name in the buffer, check if we are
   // even interested in it
   if (ignorelist_match(ignorelist, buffer) != 0) {
-    DEBUG("procevent process_check: ignoring process %s (%d)", buffer, pid);
+    WARNING("procevent process_check: ignoring process %s (%d)", buffer, pid);
     fclose(fh);
     return NULL;
   }
@@ -506,7 +506,7 @@ static processlist_t *process_check(int pid) {
     is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
 
     if (is_match == 1) {
-      DEBUG("procevent plugin: process %d name match for %s", pid, buffer);
+      WARNING("procevent plugin: process %d name match for %s", pid, buffer);
 
       if (pl->pid == pid) {
         // this is a match, and we've already stored the exact pid/name combo
@@ -535,7 +535,7 @@ static processlist_t *process_check(int pid) {
     // contained a pid/name combo,
     // then make a new one and add it to the linked list
 
-    DEBUG(
+    WARNING(
         "procevent plugin: allocating new processlist_t object for PID %d (%s)",
         pid, buffer);
 
