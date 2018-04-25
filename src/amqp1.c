@@ -379,6 +379,8 @@ static int amqp1_notify(notification_t const *n,
     return -1;
   }
 
+  WARNING("AJB amqp1 sending: %s", n->plugin);
+
   /* encode message and place on outbound queue */
   encqueue(cdm, instance);
 
