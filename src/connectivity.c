@@ -388,6 +388,7 @@ static int msg_handler(struct nlmsghdr *msg) {
     // Not of interest in current version
     break;
   case RTM_NEWLINK:
+    WARNING("AJB received netlink msg at %llu", (long long unsigned int)CDTIME_T_TO_US(cdtime()));
     connectivity_link_state(msg);
     break;
   default:
