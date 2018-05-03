@@ -523,6 +523,8 @@ static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   cb = user_data->data;
   assert(cb->send_metrics);
 
+  WARNING("AJB sending plugin %s at %llu", vl->plugin, (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+
   switch (cb->format) {
   case WH_FORMAT_JSON:
     status = wh_write_json(ds, vl, cb);

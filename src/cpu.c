@@ -600,6 +600,8 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
 static int cpu_read(void) {
   cdtime_t now = cdtime();
 
+  WARNING("AJB read interval is %llu at %llu", (long long unsigned int)CDTIME_T_TO_US(interval_g), (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+
 #if PROCESSOR_CPU_LOAD_INFO /* {{{ */
   kern_return_t status;
 
